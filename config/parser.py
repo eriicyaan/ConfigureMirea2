@@ -1,6 +1,5 @@
 from config.ast import ConstDeclaration, String, Struct, Number, ConstExpression, Identifier
 
-
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -59,12 +58,15 @@ class Parser:
 
         fields = {}
         while self.current_token and self.current_token.type != 'RBRACE':
-            name_token = self._expect('IDENTIFIER')  # Имена полей тоже должны начинаться с заглавной буквы
+            name_token = self._expect('IDENTIFIER')
             self._expect('EQUALS')
             value_node = self._parse_value()
             fields[name_token.value] = value_node
 
             if self.current_token and self.current_token.type == 'COMMA':
+                self._advance()
+            elif self.current_token and self.current_token.type == 'SEMICOLON':
+                # Разрешаем точку с запятой как разделитель (для совместимости с примерами)
                 self._advance()
 
         self._expect('RBRACE')
@@ -72,7 +74,10 @@ class Parser:
 
     def _parse_value(self):
         if self.current_token.type == 'NUMBER':
-            value = float(self.current_token.value)
+            try:
+                value = float(self.current_token.value)
+            except ValueError:
+                value = self.current_token.value
             self._advance()
             return Number(value)
         elif self.current_token.type == 'STRUCT':
@@ -80,12 +85,10 @@ class Parser:
         elif self.current_token.type == 'START_EXPR':
             return self._parse_const_expression()
         elif self.current_token.type == 'STRING':
-            raw_value = self.current_token.value[1:-1]  # Удаляем кавычки
-            value = raw_value.replace('\\"', '"').replace('\\\\', '\\')
+            value = self.current_token.value
             self._advance()
             return String(value)
         elif self.current_token.type == 'IDENTIFIER':
-            # Это может быть ссылка на константу
             name = self.current_token.value
             self._advance()
             return Identifier(name)
@@ -98,6 +101,7 @@ class Parser:
         content_token = self._expect('EXPR_CONTENT')
         self._expect('END_EXPR')
 
+        # Разбиваем выражение на токены, учитывая операторы и идентификаторы
         tokens = []
         current = ''
         for char in content_token.value:

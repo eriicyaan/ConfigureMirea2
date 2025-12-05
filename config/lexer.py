@@ -1,6 +1,5 @@
 import re
 
-
 class Token:
     def __init__(self, type, value, position=None):
         self.type = type
@@ -10,17 +9,16 @@ class Token:
     def __repr__(self):
         return f"Token({self.type}, {self.value!r})"
 
-
 class Lexer:
     def __init__(self, text):
         self.text = text
         self.pos = 0
         self.tokens = []
         self.token_specs = [
-            ('STRING', r'"([^"\\]|\\.)*"'),
+            ('STRING', r'"(?:\\.|[^"\\])*"'),  # Улучшенный паттерн для строк
             ('STRUCT', r'struct\b'),
-            ('IDENTIFIER', r'[_A-Z][_a-zA-Z0-9]*'),  # Имена только с заглавных букв или _
-            ('NUMBER', r'[+-]?\d+\.?\d*([eE][+-]?\d+)?'),  # ИСПРАВЛЕНО: числа могут быть без экспоненты
+            ('IDENTIFIER', r'[_A-Z][_a-zA-Z0-9]*'),
+            ('NUMBER', r'[+-]?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?'),
             ('COLON_EQUALS', r':='),
             ('LBRACE', r'\{'),
             ('RBRACE', r'\}'),
@@ -39,7 +37,7 @@ class Lexer:
 
     def tokenize(self):
         while self.pos < len(self.text):
-            # Обработка многострочных комментариев СТРОГО ПО ТЗ
+            # Обработка многострочных комментариев
             if self.text.startswith('<#', self.pos):
                 end_pos = self.text.find('#>', self.pos + 2)
                 if end_pos == -1:
@@ -47,7 +45,7 @@ class Lexer:
                 self.pos = end_pos + 2
                 continue
 
-            # Обработка выражений .[ ... ].
+            # Обработка выражений
             if self.text.startswith('.[', self.pos):
                 self._handle_expression()
                 continue
@@ -64,6 +62,10 @@ class Lexer:
                 pass
             elif kind == 'MISMATCH':
                 raise SyntaxError(f"Unexpected character: '{value}' at position {start_pos}")
+            elif kind == 'STRING':
+                # Корректная обработка escape-последовательностей
+                unescaped = self._unescape_string(value[1:-1])
+                self.tokens.append(Token('STRING', unescaped, start_pos))
             else:
                 self.tokens.append(Token(kind, value, start_pos))
 
@@ -84,3 +86,7 @@ class Lexer:
         self.tokens.append(Token('EXPR_CONTENT', content.strip(), content_start))
         self.tokens.append(Token('END_EXPR', '].', end_pos))
         self.pos = end_pos + 2
+
+    def _unescape_string(self, s):
+        """Корректно обрабатывает escape-последовательности в строках"""
+        return s.replace('\\"', '"').replace('\\\\', '\\').replace('\\n', '\n').replace('\\t', '\t')
