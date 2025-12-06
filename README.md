@@ -79,7 +79,7 @@ python -m unittest config.tests.test_integration
 
 
 # Структура проекта
-
+```
 config/
 ├── ast.py           # Узлы абстрактного синтаксического дерева
 ├── evaluator.py     # Вычисление константных выражений
@@ -96,3 +96,4 @@ config/
         ├── character.conf
         ├── physics.conf
         └── server.conf
+```
